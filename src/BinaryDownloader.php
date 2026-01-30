@@ -14,7 +14,7 @@ namespace Hryvinskyi\ImageBinaries;
  */
 class BinaryDownloader
 {
-    private const BINARIES = ['cwebp', 'cavif', 'magick'];
+    private const BINARIES = ['cwebp', 'cavif'];
 
     private string $targetDir;
     private string $sourceDir;

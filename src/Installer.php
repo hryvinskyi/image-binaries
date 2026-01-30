@@ -16,7 +16,7 @@ use Composer\Script\Event;
  */
 class Installer
 {
-    private const BINARIES = ['cwebp', 'cavif', 'magick'];
+    private const BINARIES = ['cwebp', 'cavif'];
 
     /**
      * Install binaries via composer script

@@ -43,70 +43,92 @@ download_cwebp() {
     else
         echo "  WARNING: cwebp not found at $cwebp_path"
         # Try to find it
-        find "$temp_dir" -name "cwebp" -type f 2>/dev/null | head -1 | while read found; do
-            if [ -n "$found" ]; then
-                cp "$found" "$BINARIES_DIR/$platform/cwebp"
-                chmod +x "$BINARIES_DIR/$platform/cwebp"
-                echo "  cwebp found and installed for $platform"
-            fi
-        done
+        local found=$(find "$temp_dir" -name "cwebp" -type f 2>/dev/null | head -1)
+        if [ -n "$found" ]; then
+            cp "$found" "$BINARIES_DIR/$platform/cwebp"
+            chmod +x "$BINARIES_DIR/$platform/cwebp"
+            echo "  cwebp found and installed for $platform"
+        fi
     fi
 
     rm -rf "$temp_dir"
 }
 
-# Function to download cavif binary
-download_cavif() {
+# Function to download cavif from .deb package (Linux)
+download_cavif_from_deb() {
     local platform=$1
     local url=$2
 
-    echo "Downloading cavif for $platform..."
+    echo "Downloading cavif for $platform from .deb..."
 
-    local temp_file=$(mktemp)
-    local http_code=$(curl -sL -w "%{http_code}" -o "$temp_file" "$url")
+    local temp_dir=$(mktemp -d)
+    local deb_file="$temp_dir/cavif.deb"
 
-    if [ "$http_code" = "200" ] && [ -s "$temp_file" ]; then
-        local file_size=$(stat -f%z "$temp_file" 2>/dev/null || stat -c%s "$temp_file" 2>/dev/null)
-        if [ "$file_size" -gt 1000 ]; then
-            mv "$temp_file" "$BINARIES_DIR/$platform/cavif"
-            chmod +x "$BINARIES_DIR/$platform/cavif"
-            echo "  cavif installed for $platform"
-        else
-            echo "  WARNING: cavif download too small ($file_size bytes), URL may be incorrect"
-            rm -f "$temp_file"
-        fi
-    else
-        echo "  WARNING: Failed to download cavif (HTTP $http_code)"
-        rm -f "$temp_file"
+    curl -sL -o "$deb_file" "$url"
+
+    # Extract .deb (it's an ar archive)
+    cd "$temp_dir"
+    ar -x "$deb_file" 2>/dev/null || {
+        echo "  WARNING: Failed to extract .deb"
+        rm -rf "$temp_dir"
+        return
+    }
+
+    # Find and extract data.tar (could be .tar.xz, .tar.gz, .tar.zst)
+    if [ -f "data.tar.xz" ]; then
+        tar -xJf "data.tar.xz"
+    elif [ -f "data.tar.gz" ]; then
+        tar -xzf "data.tar.gz"
+    elif [ -f "data.tar.zst" ]; then
+        zstd -d "data.tar.zst" -o "data.tar" && tar -xf "data.tar"
+    elif [ -f "data.tar" ]; then
+        tar -xf "data.tar"
     fi
+
+    # Find cavif binary
+    local cavif_path=$(find "$temp_dir" -name "cavif" -type f 2>/dev/null | head -1)
+    if [ -n "$cavif_path" ]; then
+        cp "$cavif_path" "$BINARIES_DIR/$platform/cavif"
+        chmod +x "$BINARIES_DIR/$platform/cavif"
+        echo "  cavif installed for $platform"
+    else
+        echo "  WARNING: cavif not found in .deb package"
+    fi
+
+    cd - > /dev/null
+    rm -rf "$temp_dir"
 }
 
-# Function to download ImageMagick AppImage (portable, works on all Linux)
-download_magick_appimage() {
-    echo "Downloading ImageMagick AppImage..."
+# Function to download cavif from .zip (macOS)
+download_cavif_from_zip() {
+    local platform=$1
+    local url=$2
 
-    local url="https://imagemagick.org/archive/binaries/magick"
-    local temp_file=$(mktemp)
+    echo "Downloading cavif for $platform from .zip..."
 
-    curl -sL -o "$temp_file" "$url"
+    local temp_dir=$(mktemp -d)
+    local zip_file="$temp_dir/cavif.zip"
 
-    if [ -s "$temp_file" ]; then
-        local file_size=$(stat -f%z "$temp_file" 2>/dev/null || stat -c%s "$temp_file" 2>/dev/null)
-        if [ "$file_size" -gt 1000000 ]; then
-            # Copy to all platforms (AppImage is portable)
-            for platform in linux-x64 linux-arm64 darwin-x64 darwin-arm64; do
-                cp "$temp_file" "$BINARIES_DIR/$platform/magick"
-                chmod +x "$BINARIES_DIR/$platform/magick"
-            done
-            echo "  magick installed for all platforms"
-        else
-            echo "  WARNING: magick download seems incomplete ($file_size bytes)"
-        fi
+    curl -sL -o "$zip_file" "$url"
+
+    # Extract zip
+    unzip -q "$zip_file" -d "$temp_dir" 2>/dev/null || {
+        echo "  WARNING: Failed to extract .zip"
+        rm -rf "$temp_dir"
+        return
+    }
+
+    # Find cavif binary
+    local cavif_path=$(find "$temp_dir" -name "cavif" -type f 2>/dev/null | head -1)
+    if [ -n "$cavif_path" ]; then
+        cp "$cavif_path" "$BINARIES_DIR/$platform/cavif"
+        chmod +x "$BINARIES_DIR/$platform/cavif"
+        echo "  cavif installed for $platform"
     else
-        echo "  WARNING: Failed to download magick"
+        echo "  WARNING: cavif not found in .zip package"
     fi
 
-    rm -f "$temp_file"
+    rm -rf "$temp_dir"
 }
 
 echo "=== Downloading cwebp (libwebp $LIBWEBP_VERSION) ==="
@@ -134,26 +156,23 @@ download_cwebp "darwin-arm64" \
 echo ""
 echo "=== Downloading cavif (v$CAVIF_VERSION) ==="
 
-# cavif-rs release assets - check https://github.com/kornelski/cavif-rs/releases for exact names
-download_cavif "linux-x64" \
+# cavif - Linux x64 (from .deb)
+download_cavif_from_deb "linux-x64" \
+    "https://github.com/kornelski/cavif-rs/releases/download/v${CAVIF_VERSION}/cavif_${CAVIF_VERSION}-1_amd64.deb"
+
+# cavif - macOS (from .zip - universal binary works on both x64 and arm64)
+download_cavif_from_zip "darwin-x64" \
     "https://github.com/kornelski/cavif-rs/releases/download/v${CAVIF_VERSION}/cavif-${CAVIF_VERSION}.zip"
 
-download_cavif "darwin-x64" \
-    "https://github.com/kornelski/cavif-rs/releases/download/v${CAVIF_VERSION}/cavif-${CAVIF_VERSION}.zip"
-
-download_cavif "darwin-arm64" \
-    "https://github.com/kornelski/cavif-rs/releases/download/v${CAVIF_VERSION}/cavif-${CAVIF_VERSION}.zip"
-
-# Linux ARM64 - may need to compile from source or use the Linux x64 binary
-echo "  NOTE: Linux ARM64 cavif may need to be compiled from source"
-if [ ! -f "$BINARIES_DIR/linux-arm64/cavif" ]; then
-    # Try to use Linux x64 binary as fallback (won't work, but placeholder)
-    echo "  Skipping linux-arm64 cavif (not available in releases)"
+# Copy macOS binary to arm64 (it's a universal binary)
+if [ -f "$BINARIES_DIR/darwin-x64/cavif" ]; then
+    cp "$BINARIES_DIR/darwin-x64/cavif" "$BINARIES_DIR/darwin-arm64/cavif"
+    chmod +x "$BINARIES_DIR/darwin-arm64/cavif"
+    echo "  cavif copied to darwin-arm64 (universal binary)"
 fi
 
-echo ""
-echo "=== Downloading ImageMagick ==="
-download_magick_appimage
+# Linux ARM64 - not available in releases
+echo "  NOTE: Linux ARM64 cavif not available in releases (needs compilation)"
 
 echo ""
 echo "=== Download complete ==="
@@ -162,7 +181,7 @@ echo "Verify binaries:"
 for platform in linux-x64 linux-arm64 darwin-x64 darwin-arm64; do
     echo ""
     echo "$platform:"
-    for binary in cwebp cavif magick; do
+    for binary in cwebp cavif; do
         if [ -f "$BINARIES_DIR/$platform/$binary" ]; then
             size=$(ls -lh "$BINARIES_DIR/$platform/$binary" | awk '{print $5}')
             echo "  $binary: $size"
@@ -171,7 +190,3 @@ for platform in linux-x64 linux-arm64 darwin-x64 darwin-arm64; do
         fi
     done
 done
-
-echo ""
-echo "NOTE: Some binaries may not be available for all platforms."
-echo "You may need to compile them from source for missing platforms."

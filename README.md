@@ -8,12 +8,11 @@ Composer plugin that provides pre-compiled image processing binaries for WebP an
 |--------|-------------|--------|
 | `cwebp` | WebP encoder from libwebp | [Google WebP](https://developers.google.com/speed/webp) |
 | `cavif` | AVIF encoder | [cavif-rs](https://github.com/kornelski/cavif-rs) |
-| `magick` | ImageMagick CLI tool | [ImageMagick](https://imagemagick.org) |
 
 ## Supported Platforms
 
 - `linux-x64` - Linux x86_64
-- `linux-arm64` - Linux ARM64/aarch64
+- `linux-arm64` - Linux ARM64/aarch64 (cwebp only, cavif needs compilation)
 - `darwin-x64` - macOS Intel
 - `darwin-arm64` - macOS Apple Silicon
 
@@ -37,7 +36,7 @@ vendor/bin/install-binaries
 
 Options:
 - `--force` - Reinstall even if binaries already exist
-- `--binary=NAME` - Install only specific binary (cwebp, cavif, or magick)
+- `--binary=NAME` - Install only specific binary (cwebp or cavif)
 - `--help` - Show help message
 
 ## Usage
@@ -47,7 +46,6 @@ After installation, binaries are available at:
 ```
 vendor/bin/cwebp
 vendor/bin/cavif
-vendor/bin/magick
 ```
 
 ### WebP Conversion
@@ -60,12 +58,6 @@ vendor/bin/cwebp input.png -q 85 -o output.webp
 
 ```bash
 vendor/bin/cavif input.png -Q 80 -o output.avif
-```
-
-### ImageMagick
-
-```bash
-vendor/bin/magick input.png -quality 85 output.webp
 ```
 
 ## For Package Maintainers
@@ -87,20 +79,15 @@ This will populate the `binaries/` directory with platform-specific executables.
 binaries/
 ├── linux-x64/
 │   ├── cwebp
-│   ├── cavif
-│   └── magick
+│   └── cavif
 ├── linux-arm64/
-│   ├── cwebp
-│   ├── cavif
-│   └── magick
+│   └── cwebp
 ├── darwin-x64/
 │   ├── cwebp
-│   ├── cavif
-│   └── magick
+│   └── cavif
 └── darwin-arm64/
     ├── cwebp
-    ├── cavif
-    └── magick
+    └── cavif
 ```
 
 ## Binary Versions
@@ -108,8 +95,7 @@ binaries/
 | Binary | Version |
 |--------|---------|
 | libwebp (cwebp) | 1.5.0 |
-| cavif-rs | 1.3.5 |
-| ImageMagick | Latest |
+| cavif-rs | 1.5.5 |
 
 ## License
 
