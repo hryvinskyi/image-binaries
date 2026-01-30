@@ -9,8 +9,6 @@ declare(strict_types=1);
 
 namespace Hryvinskyi\ImageBinaries;
 
-use Composer\Script\Event;
-
 /**
  * Composer script handler for installing bundled image processing binaries
  */
@@ -21,13 +19,11 @@ class Installer
     /**
      * Install binaries via composer script
      *
-     * @param Event $event
      * @return void
      */
-    public static function install(Event $event): void
+    public static function install(): void
     {
-        $io = $event->getIO();
-        $vendorDir = $event->getComposer()->getConfig()->get('vendor-dir');
+        $vendorDir = self::getVendorDir();
         $binDir = $vendorDir . '/bin';
 
         if (!is_dir($binDir)) {
@@ -38,11 +34,11 @@ class Installer
         $packageDir = self::getPackageDir($vendorDir);
         $binarySourceDir = $packageDir . '/binaries/' . $platform;
 
-        $io->write("<info>Installing image binaries for platform: {$platform}</info>");
+        echo "Installing image binaries for platform: {$platform}\n";
 
         if (!is_dir($binarySourceDir)) {
-            $io->write("<warning>No binaries available for platform {$platform}</warning>");
-            $io->write("<comment>Available platforms: " . implode(', ', self::getAvailablePlatforms($packageDir)) . "</comment>");
+            echo "Warning: No binaries available for platform {$platform}\n";
+            echo "Available platforms: " . implode(', ', self::getAvailablePlatforms($packageDir)) . "\n";
             return;
         }
 
@@ -51,22 +47,33 @@ class Installer
             $targetPath = $binDir . '/' . $binary;
 
             if (!file_exists($sourcePath)) {
-                $io->write("<warning>{$binary} not found in package for platform {$platform}</warning>");
+                echo "Warning: {$binary} not found in package for platform {$platform}\n";
                 continue;
             }
 
             if (file_exists($targetPath)) {
-                $io->write("<info>{$binary} already exists, updating...</info>");
+                echo "{$binary} already exists, updating...\n";
                 unlink($targetPath);
             }
 
             if (copy($sourcePath, $targetPath)) {
                 chmod($targetPath, 0755);
-                $io->write("<info>{$binary} installed successfully</info>");
+                echo "{$binary} installed successfully\n";
             } else {
-                $io->write("<error>Failed to install {$binary}</error>");
+                echo "Error: Failed to install {$binary}\n";
             }
         }
+    }
+
+    /**
+     * Get vendor directory path
+     *
+     * @return string
+     */
+    private static function getVendorDir(): string
+    {
+        // Package is at vendor/hryvinskyi/image-binaries/src/Installer.php
+        return dirname(__DIR__, 3);
     }
 
     /**

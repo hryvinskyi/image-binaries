@@ -1,7 +1,7 @@
 {
     "name": "hryvinskyi/image-binaries",
     "description": "Image processing binaries (cwebp, cavif, magick) for WebP and AVIF conversion",
-    "type": "composer-plugin",
+    "type": "library",
     "license": "MIT",
     "authors": [
         {
@@ -10,25 +10,19 @@
         }
     ],
     "require": {
-        "php": "^8.1",
-        "composer-plugin-api": "^2.0"
-    },
-    "require-dev": {
-        "composer/composer": "^2.0"
+        "php": "^8.1"
     },
     "autoload": {
         "psr-4": {
             "Hryvinskyi\\ImageBinaries\\": "src/"
         }
     },
-    "extra": {
-        "class": "Hryvinskyi\\ImageBinaries\\Plugin"
+    "scripts": {
+        "post-install-cmd": "Hryvinskyi\\ImageBinaries\\Installer::install",
+        "post-update-cmd": "Hryvinskyi\\ImageBinaries\\Installer::install"
     },
     "config": {
-        "sort-packages": true,
-        "allow-plugins": {
-            "hryvinskyi/image-binaries": true
-        }
+        "sort-packages": true
     },
     "bin": [
         "bin/install-binaries"
