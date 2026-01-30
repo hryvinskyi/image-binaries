@@ -1,0 +1,78 @@
+#!/usr/bin/env php
+<?php
+/**
+ * Copyright (c) 2025. Volodymyr Hryvinskyi. All rights reserved.
+ * @author: <mailto:volodymyr@hryvinskyi.com>
+ *
+ * CLI script to install bundled image processing binaries
+ *
+ * Usage: vendor/bin/install-binaries [--force] [--binary=cwebp|cavif|magick]
+ */
+
+declare(strict_types=1);
+
+// Find autoloader
+$autoloaderPaths = [
+    __DIR__ . '/../vendor/autoload.php',
+    __DIR__ . '/../../../autoload.php',
+    __DIR__ . '/../../../../vendor/autoload.php',
+];
+
+$autoloader = null;
+foreach ($autoloaderPaths as $path) {
+    if (file_exists($path)) {
+        $autoloader = $path;
+        break;
+    }
+}
+
+if ($autoloader === null) {
+    fwrite(STDERR, "Could not find autoloader\n");
+    exit(1);
+}
+
+require $autoloader;
+
+use Hryvinskyi\ImageBinaries\BinaryDownloader;
+
+$options = getopt('', ['force', 'binary:', 'help']);
+
+if (isset($options['help'])) {
+    echo <<<HELP
+Image Binaries Installer
+
+Installs bundled image processing binaries (cwebp, cavif, magick) to vendor/bin
+
+Usage: install-binaries [options]
+
+Options:
+  --force           Force reinstall even if binaries exist
+  --binary=NAME     Install only specific binary (cwebp, cavif, or magick)
+  --help            Show this help message
+
+Examples:
+  install-binaries
+  install-binaries --force
+  install-binaries --binary=cwebp
+
+HELP;
+    exit(0);
+}
+
+$force = isset($options['force']);
+$specificBinary = $options['binary'] ?? null;
+
+// Determine directories
+$vendorDir = dirname($autoloader);
+$targetDir = $vendorDir . '/bin';
+$sourceDir = dirname(__DIR__) . '/binaries';
+
+$downloader = new BinaryDownloader($targetDir, $sourceDir);
+
+if ($specificBinary !== null) {
+    $result = $downloader->installBinary($specificBinary, $force);
+    exit($result ? 0 : 1);
+} else {
+    $downloader->installAll($force);
+    echo "Installation completed.\n";
+}
